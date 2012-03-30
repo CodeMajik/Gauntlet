@@ -114,18 +114,20 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="include\BaseBlockObject.h" />
+    <ClInclude Include="include\BaseGameEntity.h" />
+    <ClInclude Include="include\BlockFactory.h" />
+    <ClInclude Include="include\BlockManager.h" />
+    <ClInclude Include="include\CompanionCube.h" />
     <ClInclude Include="include\ContactListener.h" />
+    <ClInclude Include="include\Elevator.h" />
     <ClInclude Include="include\Gauntlet.h" />
     <ClInclude Include="include\Havok.h" />
     <ClInclude Include="include\Physics.h" />
-    <ClInclude Include="Player.h" />
+    <ClInclude Include="include\Player.h" />
+    <ClInclude Include="include\PressurePad.h" />
+    <ClInclude Include="include\UniqueIDGenerator.h" />
     <ClInclude Include="res\Resource.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Player.cpp" />
-    <ClCompile Include="src\ContactListener.cpp" />
-    <ClCompile Include="src\Gauntlet.cpp" />
-    <ClCompile Include="src\Physics.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="docs\ReadMe.txt" />
@@ -133,6 +135,20 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Gauntlet.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\BaseBlockObject.cpp" />
+    <ClCompile Include="src\BaseGameEntity.cpp" />
+    <ClCompile Include="src\BlockFactory.cpp" />
+    <ClCompile Include="src\BlockManager.cpp" />
+    <ClCompile Include="src\CompanionCube.cpp" />
+    <ClCompile Include="src\ContactListener.cpp" />
+    <ClCompile Include="src\Elevator.cpp" />
+    <ClCompile Include="src\Gauntlet.cpp" />
+    <ClCompile Include="src\Physics.cpp" />
+    <ClCompile Include="src\Player.cpp" />
+    <ClCompile Include="src\PressurePad.cpp" />
+    <ClCompile Include="src\UniqueIDGenerator.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

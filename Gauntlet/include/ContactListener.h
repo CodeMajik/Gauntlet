@@ -17,11 +17,14 @@
 #define IS_PIG(x) (x->getType() == BaseGameEntity::ENTITYTYPE::PIG)
 
 class ContactListener: public hkpContactListener{
-public:
+private:
 	ContactListener()
 	{
 		//plr = Player::getInstance();
 	}
+	static ContactListener* m_instance;
+public:
+	static ContactListener* getInstance();
 
 	virtual void contactPointCallback( const hkpContactPointEvent& event )
 	{

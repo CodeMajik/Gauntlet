@@ -92,9 +92,9 @@ void Gauntlet::createCamera(void)
     mCamera = mSceneMgr->createCamera("PlayerCam");
 
     // Position it at 500 in Z direction
-    mCamera->setPosition(Ogre::Vector3(0,0,80));
+    mCamera->setPosition(Ogre::Vector3(0,10,0));
     // Look back along -Z
-    mCamera->lookAt(Ogre::Vector3(0,0,-300));
+    mCamera->lookAt(Ogre::Vector3(0,10,0));
     mCamera->setNearClipDistance(5);
 
     mCameraMan = new OgreBites::SdkCameraMan(mCamera);   // create a default camera controller
@@ -119,6 +119,7 @@ void Gauntlet::createFrameListener(void)
     mMouse->setEventCallback(this);
     mKeyboard->setEventCallback(this);
 
+
     //Set initial mouse clipping size
     windowResized(mWindow);
 
@@ -128,7 +129,7 @@ void Gauntlet::createFrameListener(void)
     mTrayMgr = new OgreBites::SdkTrayManager("InterfaceName", mWindow, mMouse, this);
     mTrayMgr->showFrameStats(OgreBites::TL_BOTTOMLEFT);
     mTrayMgr->showLogo(OgreBites::TL_BOTTOMRIGHT);
-    mTrayMgr->hideCursor();
+   // mTrayMgr->hideCursor();
 
     // create a params panel for displaying sample details
     Ogre::StringVector items;
@@ -252,18 +253,69 @@ bool Gauntlet::setup(void)
 //-------------------------------------------------------------------------------------
 void Gauntlet::createScene(void)
 {
-	Ogre::Entity* ogreHead = mSceneMgr->createEntity("Head", "ogrehead.mesh");
-
-	Ogre::SceneNode* headNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-	headNode->attachObject(ogreHead);
-
-	// Set ambient light
 	mSceneMgr->setAmbientLight(Ogre::ColourValue(0.5, 0.5, 0.5));
-
 	// Create a light
 	Ogre::Light* l = mSceneMgr->createLight("MainLight");
 	l->setPosition(20,80,50);
+
+	physics.SetUp();
+	CreatePlanes();
+
+	hkVector4 plrPos = hkVector4(mCamera->getPosition().x, mCamera->getPosition().y, mCamera->getPosition().z, 0.0);
+	m_player = new Player(plrPos, *physics.GetPhysicsWorld(), mSceneMgr);
+
+
+	m_contactListener = ContactListener::getInstance();
+
+	m_blockManager = BlockManager::instance(physics.GetPhysicsWorld());
+	m_blockManager->init(0, mSceneMgr);
+
+	m_blockManager->addBlock(BaseBlockObject::BLOCKTYPE::STONE, 50.0f, hkVector4(-100.0f, 50.0f, -20.0f, 0.0f), mSceneMgr);
+	m_blockManager->addBlock(BaseBlockObject::BLOCKTYPE::STONE, 10.0f, hkVector4(-110.0f, 10.0f, -20.0f, 0.0f), mSceneMgr);
+	m_blockManager->addBlock(BaseBlockObject::BLOCKTYPE::STONE, 10.0f, hkVector4(-90.0f, 10.0f, -20.0f, 0.0f), mSceneMgr);
+
+	elevator1 = new Elevator(hkVector4(-50.0f, 2.0f, -30.0f, 0.0f), hkVector4(-100.0f, 50.0f, 0.0f, 0.0f), hkVector4(50.0f, 2.0f, -30.0f, 0.0f), mSceneMgr, *physics.GetPhysicsWorld(), m_contactListener);
+	elevator1->changeState(Elevator::STATE::MOVINGTODESTINATION);
+
+	//pressurePad1 = new PressurePad(hkVector4(50.0f, 2.0f, -30.0f, 0.0f), mSceneMgr, *physics.GetPhysicsWorld(), m_contactListener);
+	companionCube1 = new CompanionCube(hkVector4(20.0f, 5.0f, 20.0f, 0.0f), mSceneMgr, *physics.GetPhysicsWorld(), m_contactListener);
 }
+
+void Gauntlet::CreatePlanes(){
+	hkVector4 groundBox( 200.0f, 2.0f, 200.0f );
+	hkVector4 position( 0.0f, 0.0f, 0.0f );
+	hkpConvexShape* shape = new hkpBoxShape( groundBox , 0 );
+
+	hkpRigidBodyCinfo ci;
+
+	ci.m_shape = shape;
+	ci.m_motionType = hkpMotion::MOTION_FIXED;
+	ci.m_position = position;
+	ci.m_qualityType = HK_COLLIDABLE_QUALITY_FIXED;
+	ci.m_restitution=1.0;
+	ci.m_friction=0.8;
+
+	hkpRigidBody* floor=new hkpRigidBody( ci );
+	physics.GetPhysicsWorld()->addEntity( floor );
+
+	floor->removeReference(); 
+	shape->removeReference();
+
+
+	Ogre::MeshPtr p =Ogre::MeshManager::getSingleton().createPlane("GroundPlane", 
+		Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
+		Ogre::Plane(Ogre::Vector3(0.0,1.0,0.0),
+		Ogre::Vector3(position(0),position(1),position(2)))
+		,600,600,20,20,true, 1,1.0f,1.0f,Ogre::Vector3::UNIT_X);
+
+	Ogre::SceneNode* planeNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+	Ogre::Entity* entGround = mSceneMgr->createEntity("Viewer_ZXPlane","GroundPlane");
+	entGround->setMaterialName("Examples/BumpyMetal");
+	entGround->setCastShadows(false);
+
+	planeNode->attachObject(entGround);
+}
+
 //-------------------------------------------------------------------------------------
 bool Gauntlet::frameRenderingQueued(const Ogre::FrameEvent& evt)
 {
@@ -294,6 +346,38 @@ bool Gauntlet::frameRenderingQueued(const Ogre::FrameEvent& evt)
         }
     }
 
+	physics.Simulate(evt.timeSinceLastFrame);
+
+	m_blockManager->update(evt);
+	m_player->update(evt);
+	mCamera->setPosition(Ogre::Vector3(mCamera->getPosition().x, 10.0f, mCamera->getPosition().z));
+	hkVector4 plrPos = hkVector4(mCamera->getPosition().x, mCamera->getPosition().y, mCamera->getPosition().z, 0.0);
+	//m_player->setPosition(plrPos);
+	elevator1->update(evt);
+	companionCube1->update(evt, plrPos);
+
+	if (mKeyboard->isKeyDown(OIS::KC_W)) // Forward
+	{
+		hkQuaternion orientation = m_player->getPhysicalBody()->getBody()->getRotation();
+		hkVector4 vel = m_player->getPhysicalBody()->getBody()->getLinearVelocity();
+		vel(0)+=orientation(0)/3;
+		//vel(1)+=orientation(1);
+		vel(2)+=orientation(2)/3;
+		//vel(3)+=orientation(3)/3;
+		m_player->getPhysicalBody()->getBody()->setLinearVelocity(vel);
+	}
+
+	if (mKeyboard->isKeyDown(OIS::KC_S)) // Forward
+	{
+		hkQuaternion orientation = m_player->getPhysicalBody()->getBody()->getRotation();
+		hkVector4 vel = m_player->getPhysicalBody()->getBody()->getLinearVelocity();
+		vel(0)-=orientation(0)/3;
+		//vel(1)-=orientation(1);
+		vel(2)-=orientation(2)/3;
+		//vel(3)-=orientation(3)/3;
+		m_player->getPhysicalBody()->getBody()->setLinearVelocity(vel);
+	}
+
     return true;
 }
 //-------------------------------------------------------------------------------------
@@ -301,7 +385,7 @@ bool Gauntlet::keyPressed( const OIS::KeyEvent &arg )
 {
     if (mTrayMgr->isDialogVisible()) return true;   // don't process any more keys if dialog is up
 
-    if (arg.key == OIS::KC_F)   // toggle visibility of advanced frame stats
+    if (arg.key == OIS::KC_F)   // toggle visibility of advanced frame stats   
     {
         mTrayMgr->toggleAdvancedFrameStats();
     }
@@ -386,6 +470,26 @@ bool Gauntlet::keyPressed( const OIS::KeyEvent &arg )
     {
         mShutDown = true;
     }
+	//else if(arg.key == OIS::KC_W)   // refresh all textures
+ //   {
+	//	hkQuaternion orientation = m_player->getPhysicalBody()->getBody()->getRotation();
+	//	hkVector4 vel = m_player->getPhysicalBody()->getBody()->getLinearVelocity();
+	//	vel(0)+=orientation(0);
+	//	vel(1)+=orientation(1);
+	//	vel(2)+=orientation(2);
+	//	vel(3)+=orientation(3);
+	//	m_player->getPhysicalBody()->getBody()->setLinearVelocity(vel);
+ //   }
+	//else if(arg.key == OIS::KC_S)   // refresh all textures
+ //   {
+ //       hkQuaternion orientation = m_player->getPhysicalBody()->getBody()->getRotation();
+	//	hkVector4 vel = m_player->getPhysicalBody()->getBody()->getLinearVelocity();
+	//	vel(0)-=orientation(0);
+	//	vel(1)-=orientation(1);
+	//	vel(2)-=orientation(2);
+	//	vel(3)-=orientation(3);
+	//	m_player->getPhysicalBody()->getBody()->setLinearVelocity(vel);
+ //   }
 
     mCameraMan->injectKeyDown(arg);
     return true;
@@ -401,6 +505,7 @@ bool Gauntlet::mouseMoved( const OIS::MouseEvent &arg )
 {
     if (mTrayMgr->injectMouseMove(arg)) return true;
     mCameraMan->injectMouseMove(arg);
+
     return true;
 }
 
@@ -408,6 +513,7 @@ bool Gauntlet::mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
     if (mTrayMgr->injectMouseDown(arg, id)) return true;
     mCameraMan->injectMouseDown(arg, id);
+	m_player->injectMouseDown(arg, id, mCamera, companionCube1);
     return true;
 }
 
